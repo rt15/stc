@@ -1,0 +1,8 @@
+# Text files using LF:
+*.gitattributes text eol=lf
+*.gitignore text eol=lf
+*.c text eol=lf
+*.h text eol=lf
+*.stc text eol=lf
+*.sth text eol=lf
+CMakeLists.txt eol=lf
