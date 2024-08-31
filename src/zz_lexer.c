@@ -7,13 +7,16 @@ static rt_s zz_lexer_read_alpha(rt_char *input, struct zz_token *token)
 {
 	rt_char *in_identifier = input;
 
-	token->type = ZZ_TOKEN_TYPE_IDENTIFIER;
-	token->str = input;
-
 	while (RT_CHAR_IS_ALPHANUM(*in_identifier) || *in_identifier == _R('_'))
 		in_identifier++;
 	
+	token->str = input;
 	token->str_size = in_identifier - input;
+
+	if (rt_char_equals(token->str, token->str_size, _R("fn"), 2))
+		token->type = ZZ_TOKEN_TYPE_FUNCTION;
+	else
+		token->type = ZZ_TOKEN_TYPE_IDENTIFIER;
 
 	return RT_OK;
 }
@@ -68,6 +71,14 @@ rt_s zz_lexer_read_next_token(struct zz_lexer *lexer)
 		current_token->str_size = 1;
 	} else if (character == _R('%')) {
 		current_token->type = ZZ_TOKEN_TYPE_PERCENT;
+		current_token->str = input;
+		current_token->str_size = 1;
+	} else if (character == _R('{')) {
+		current_token->type = ZZ_TOKEN_TYPE_OPEN_BRACE;
+		current_token->str = input;
+		current_token->str_size = 1;
+	} else if (character == _R('}')) {
+		current_token->type = ZZ_TOKEN_TYPE_CLOSE_BRACE;
 		current_token->str = input;
 		current_token->str_size = 1;
 	} else if (character == _R('(')) {

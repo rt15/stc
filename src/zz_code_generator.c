@@ -134,22 +134,21 @@ error:
 	goto free;
 }
 
-static rt_s zz_code_generator_generate_do(struct zz_ast_node *root, rt_char *output_file_path, LLVMContextRef llvm_context, LLVMModuleRef llvm_module, LLVMBuilderRef llvm_builder)
+static rt_s zz_code_generator_generate_function(struct zz_ast_node *node, LLVMContextRef llvm_context, LLVMModuleRef llvm_module, LLVMBuilderRef llvm_builder)
 {
-	LLVMValueRef llvm_expression_value;
+	LLVMValueRef llvm_body_value;
 	LLVMTypeRef main_function_return_type;
 	LLVMTypeRef main_function_param_types[] = { };
 	LLVMTypeRef main_function_type;
 	LLVMValueRef main_function;
 	LLVMBasicBlockRef main_function_entry;
-	LLVMTargetRef target;
-	rt_char8 *llvm_error;
-	rt_char8 output_file_path8[RT_FILE_PATH_SIZE];
-	rt_un output_file_path8_size;
-	rt_char8 *output;
 	rt_s ret;
 
-	if (RT_UNLIKELY(!zz_code_generator_generate_expression(root, llvm_context, llvm_module, llvm_builder, &llvm_expression_value)))
+	if (node->type != ZZ_AST_NODE_TYPE_FUNCTION) {
+		goto error;
+	}
+
+	if (RT_UNLIKELY(!zz_code_generator_generate_expression(node->u.function.body, llvm_context, llvm_module, llvm_builder, &llvm_body_value)))
 		goto error;
 
 	main_function_return_type = LLVMInt32TypeInContext(llvm_context);
@@ -157,7 +156,29 @@ static rt_s zz_code_generator_generate_do(struct zz_ast_node *root, rt_char *out
 	main_function = LLVMAddFunction(llvm_module, "main", main_function_type);
 	main_function_entry = LLVMAppendBasicBlockInContext(llvm_context, main_function, "entry");
 	LLVMPositionBuilderAtEnd(llvm_builder, main_function_entry);
-	LLVMBuildRet(llvm_builder, llvm_expression_value);
+	LLVMBuildRet(llvm_builder, llvm_body_value);
+
+	ret = RT_OK;
+free:
+	return ret;
+
+error:
+	ret = RT_FAILED;
+	goto free;
+}
+
+static rt_s zz_code_generator_generate_do(struct zz_ast_node *root, rt_char *output_file_path, LLVMContextRef llvm_context, LLVMModuleRef llvm_module, LLVMBuilderRef llvm_builder)
+{
+	LLVMTargetRef target;
+	rt_char8 *llvm_error;
+	rt_char8 output_file_path8[RT_FILE_PATH_SIZE];
+	rt_un output_file_path8_size;
+	rt_char8 *output;
+	rt_s ret;
+
+	/* TODO: For now, we assume that the root is a function. Later it will be a module. */
+	if (RT_UNLIKELY(!zz_code_generator_generate_function(root, llvm_context, llvm_module, llvm_builder)))
+		goto error;
 
 	if (RT_UNLIKELY(LLVMInitializeNativeTarget())) {
 		rt_error_set_last(RT_ERROR_FUNCTION_FAILED);
@@ -217,6 +238,9 @@ rt_s zz_code_generator_generate(struct zz_ast_node *root, rt_char *output_file_p
 
 	if (RT_UNLIKELY(!zz_code_generator_generate_do(root, output_file_path, llvm_context, llvm_module, llvm_builder)))
 		goto error;
+
+	/* TODO: Temporary. Maybe I should add a flag parameter so that the IR can be displayed or put in a file. */
+	LLVMDumpModule(llvm_module);
 
 	ret = RT_OK;
 free:

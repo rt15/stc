@@ -18,103 +18,6 @@ static rt_s zz_display_help(rt_s ret)
 	return ret;
 }
 
-static rt_s zz_stc_execute_node(struct zz_ast_node *ast_node, rt_n *result)
-{
-	rt_n left_value;
-	rt_n right_value;
-	rt_n value;
-	rt_s ret;
-
-	switch (ast_node->type) {
-	case ZZ_AST_NODE_TYPE_NUMBER:
-		*result = ast_node->u.number.value;
-		break;
-	case ZZ_AST_NODE_TYPE_BINARY_OPERATOR:
-		if (RT_UNLIKELY(!zz_stc_execute_node(ast_node->u.binary_operator.left, &left_value)))
-			goto error;
-
-		if (RT_UNLIKELY(!zz_stc_execute_node(ast_node->u.binary_operator.right, &right_value)))
-			goto error;
-
-		switch (ast_node->u.binary_operator.binary_operator) {
-		case ZZ_BINARY_OPERATOR_ADD:
-			*result = left_value + right_value;
-			break;
-		case ZZ_BINARY_OPERATOR_SUBTRACT:
-			*result = left_value - right_value;
-			break;
-		case ZZ_BINARY_OPERATOR_MULTIPLY:
-			*result = left_value * right_value;
-			break;
-		case ZZ_BINARY_OPERATOR_DIVIDE:
-			*result = left_value / right_value;
-			break;
-		case ZZ_BINARY_OPERATOR_MODULO:
-			*result = left_value % right_value;
-			break;
-		default:
-			rt_error_set_last(RT_ERROR_BAD_ARGUMENTS);
-			goto error;
-		}
-		break;
-	case ZZ_AST_NODE_TYPE_UNARY_OPERATOR:
-		if (RT_UNLIKELY(!zz_stc_execute_node(ast_node->u.unary_operator.operand, &value)))
-			goto error;
-		switch (ast_node->u.unary_operator.unary_operator) {
-		case ZZ_UNARY_OPERATOR_NEGATE:
-			*result = -value;
-			break;
-		default:
-			rt_error_set_last(RT_ERROR_BAD_ARGUMENTS);
-			goto error;
-		}
-		break;
-	default:
-		rt_error_set_last(RT_ERROR_BAD_ARGUMENTS);
-		goto error;
-	}
-
-	ret = RT_OK;
-free:
-	return ret;
-
-error:
-	ret = RT_FAILED;
-	goto free;
-}
-
-static rt_s zz_stc_execute(struct zz_ast_node *root)
-{
-	rt_n current_value;
-	rt_char buffer[RT_CHAR_HALF_BIG_STRING_SIZE];
-	rt_un buffer_size;
-	rt_s ret;
-
-	if (RT_UNLIKELY(!zz_stc_execute_node(root, &current_value)))
-		goto error;
-
-	buffer_size = 8;
-	if (RT_UNLIKELY(!rt_char_copy(_R("Result: "), buffer_size, buffer, RT_CHAR_HALF_BIG_STRING_SIZE)))
-		goto error;
-
-	if (RT_UNLIKELY(!rt_char_append_n(current_value, 10, buffer, RT_CHAR_HALF_BIG_STRING_SIZE, &buffer_size)))
-		goto error;
-
-	if (RT_UNLIKELY(!rt_char_append_char(_R('\n'), buffer, RT_CHAR_HALF_BIG_STRING_SIZE, &buffer_size)))
-		goto error;
-
-	if (RT_UNLIKELY(!rt_console_write_str_with_size(buffer, buffer_size)))
-		goto error;
-
-	ret = RT_OK;
-free:
-	return ret;
-
-error:
-	ret = RT_FAILED;
-	goto free;
-}
-
 static rt_s zz_stc_with_lexer(struct zz_lexer *lexer, rt_char *output_file_path, struct rt_heap *heap)
 {
 	void *ast_nodes_list = RT_NULL;
@@ -126,11 +29,6 @@ static rt_s zz_stc_with_lexer(struct zz_lexer *lexer, rt_char *output_file_path,
 
 	if (RT_UNLIKELY(!zz_parser_parse(lexer, &ast_nodes_list, &root))) {
 		rt_error_message_write_last(_R("Compilation failed: "));
-		goto error;
-	}
-
-	if (RT_UNLIKELY(!zz_stc_execute(root))) {
-		rt_error_message_write_last(_R("Execution failed: "));
 		goto error;
 	}
 

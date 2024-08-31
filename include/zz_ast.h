@@ -9,7 +9,8 @@
 enum zz_ast_node_type {
 	ZZ_AST_NODE_TYPE_NUMBER,
 	ZZ_AST_NODE_TYPE_UNARY_OPERATOR,
-	ZZ_AST_NODE_TYPE_BINARY_OPERATOR
+	ZZ_AST_NODE_TYPE_BINARY_OPERATOR,
+	ZZ_AST_NODE_TYPE_FUNCTION
 };
 
 struct zz_ast_node {
@@ -27,6 +28,11 @@ struct zz_ast_node {
 			struct zz_ast_node *left;
 			struct zz_ast_node *right;
 		} binary_operator;
+		struct {
+			rt_char *name;
+			rt_un name_size;
+			struct zz_ast_node *body;
+		} function;
 	} u;
 };
 

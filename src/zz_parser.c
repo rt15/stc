@@ -74,7 +74,7 @@ static rt_s zz_parser_parse_parenthesis(struct zz_lexer *lexer, void **ast_nodes
 	struct zz_token *current_token = &lexer->current_token;
 	rt_s ret;
 
-	/* Read the opening parenthesis. */
+	/* Consume the opening parenthesis. */
 	if (!zz_lexer_read_next_token(lexer))
 		return RT_FAILED;
 
@@ -86,7 +86,7 @@ static rt_s zz_parser_parse_parenthesis(struct zz_lexer *lexer, void **ast_nodes
 		goto error;
 	}
 
-	/* Read the closing parenthesis. */
+	/* Consume the closing parenthesis. */
 	if (!zz_lexer_read_next_token(lexer))
 		return RT_FAILED;
 
@@ -153,7 +153,9 @@ static rt_s zz_parser_parse_binary_operator(struct zz_lexer *lexer, rt_un parent
 	while (RT_TRUE) {
 
 		/* TODO: I probably want end of instruction here. */
-		if (current_token->type == ZZ_TOKEN_TYPE_END_OF_FILE || current_token->type == ZZ_TOKEN_TYPE_CLOSE_PARENTHESIS) {
+		if (current_token->type == ZZ_TOKEN_TYPE_END_OF_FILE ||
+		    current_token->type == ZZ_TOKEN_TYPE_CLOSE_PARENTHESIS ||
+		    current_token->type == ZZ_TOKEN_TYPE_CLOSE_BRACE) {
 			*result = left_hand_side;
 			break;
 		}
@@ -176,6 +178,7 @@ static rt_s zz_parser_parse_binary_operator(struct zz_lexer *lexer, rt_un parent
 			break;
 		case ZZ_TOKEN_TYPE_END_OF_FILE:
 		case ZZ_TOKEN_TYPE_IDENTIFIER:
+		case ZZ_TOKEN_TYPE_FUNCTION:
 		case ZZ_TOKEN_TYPE_NUMBER:
 		default:
 			/* TODO: Better error handling. */
@@ -198,7 +201,9 @@ static rt_s zz_parser_parse_binary_operator(struct zz_lexer *lexer, rt_un parent
 			goto error;
 
 		/* Now we expect either a binary operator or the end of the expression. */
-		if (current_token->type != ZZ_TOKEN_TYPE_END_OF_FILE && current_token->type != ZZ_TOKEN_TYPE_CLOSE_PARENTHESIS) {
+		if (current_token->type != ZZ_TOKEN_TYPE_END_OF_FILE &&
+		    current_token->type != ZZ_TOKEN_TYPE_CLOSE_PARENTHESIS &&
+		    current_token->type != ZZ_TOKEN_TYPE_CLOSE_BRACE) {
 
 			switch (current_token->type) {
 			case ZZ_TOKEN_TYPE_PLUS:
@@ -218,9 +223,12 @@ static rt_s zz_parser_parse_binary_operator(struct zz_lexer *lexer, rt_un parent
 				break;
 			case ZZ_TOKEN_TYPE_END_OF_FILE:
 			case ZZ_TOKEN_TYPE_IDENTIFIER:
+			case ZZ_TOKEN_TYPE_FUNCTION:
 			case ZZ_TOKEN_TYPE_NUMBER:
 			case ZZ_TOKEN_TYPE_OPEN_PARENTHESIS:
 			case ZZ_TOKEN_TYPE_CLOSE_PARENTHESIS:
+			case ZZ_TOKEN_TYPE_OPEN_BRACE:
+			case ZZ_TOKEN_TYPE_CLOSE_BRACE:
 			default:
 				/* TODO: Better error handling. */
 				goto error;
@@ -266,6 +274,7 @@ static rt_s zz_parser_parse_expression(struct zz_lexer *lexer, void **ast_nodes_
 	switch (current_token->type) {
 	case ZZ_TOKEN_TYPE_END_OF_FILE:
 	case ZZ_TOKEN_TYPE_CLOSE_PARENTHESIS:
+	case ZZ_TOKEN_TYPE_CLOSE_BRACE:
 		/* It was just a primary, without binary operator and right hand side expression. */
 		*result = left_hand_side;
 		break;
@@ -291,6 +300,91 @@ error:
 	goto free;
 }
 
+static rt_s zz_parser_parse_function(struct zz_lexer *lexer, void **ast_nodes_list, struct zz_ast_node **result)
+{
+	struct zz_token *current_token = &lexer->current_token;
+	struct zz_ast_node *ast_node;
+	rt_s ret;
+
+	if (current_token->type != ZZ_TOKEN_TYPE_FUNCTION) {
+		/* TODO: Better error handling. */
+		goto error;
+	}
+
+	/* Consume the fn keyword. */
+	if (RT_UNLIKELY(!zz_lexer_read_next_token(lexer)))
+		goto error;
+
+	if (current_token->type != ZZ_TOKEN_TYPE_IDENTIFIER) {
+		/* TODO: Better error handling. */
+		goto error;
+	}
+	
+	if (RT_UNLIKELY(!rt_list_new_item(ast_nodes_list, (void**)&ast_node)))
+		goto error;
+	
+	ast_node->type = ZZ_AST_NODE_TYPE_FUNCTION;
+	ast_node->u.function.name = current_token->str;
+	ast_node->u.function.name_size = current_token->str_size;
+
+	/* Consume the function name. */
+	if (RT_UNLIKELY(!zz_lexer_read_next_token(lexer)))
+		goto error;
+
+	if (current_token->type != ZZ_TOKEN_TYPE_OPEN_PARENTHESIS) {
+		/* TODO: Better error handling. */
+		goto error;
+	}
+
+	/* Consume the opening parenthesis. */
+	if (RT_UNLIKELY(!zz_lexer_read_next_token(lexer)))
+		goto error;
+
+	/* TODO: Parse arguments. */
+
+	if (current_token->type != ZZ_TOKEN_TYPE_CLOSE_PARENTHESIS) {
+		/* TODO: Better error handling. */
+		goto error;
+	}
+
+	/* Consume the closing parenthesis. */
+	if (RT_UNLIKELY(!zz_lexer_read_next_token(lexer)))
+		goto error;
+
+	if (current_token->type != ZZ_TOKEN_TYPE_OPEN_BRACE) {
+		/* TODO: Better error handling. */
+		goto error;
+	}
+
+	/* Consume the opening brace. */
+	if (RT_UNLIKELY(!zz_lexer_read_next_token(lexer)))
+		goto error;
+
+	/* Parse the body, an expression for now. */
+	/* TODO: The body won't remain as just an expression for long. */
+	if (RT_UNLIKELY(!zz_parser_parse_expression(lexer, ast_nodes_list, &ast_node->u.function.body)))
+		goto error;
+
+	if (current_token->type != ZZ_TOKEN_TYPE_CLOSE_BRACE) {
+		/* TODO: Better error handling. */
+		goto error;
+	}
+
+	/* Consume the closing brace. */
+	if (RT_UNLIKELY(!zz_lexer_read_next_token(lexer)))
+		goto error;
+
+	*result = ast_node;
+
+	ret = RT_OK;
+free:
+	return ret;
+
+error:
+	ret = RT_FAILED;
+	goto free;
+}
+
 rt_s zz_parser_parse(struct zz_lexer *lexer, void **ast_nodes_list, struct zz_ast_node **root)
 {
 	struct zz_token *current_token = &lexer->current_token;
@@ -303,7 +397,7 @@ rt_s zz_parser_parse(struct zz_lexer *lexer, void **ast_nodes_list, struct zz_as
 		/* Empty file. */
 		*root = RT_NULL;
 	} else {
-		if (RT_UNLIKELY(!zz_parser_parse_expression(lexer, ast_nodes_list, root)))
+		if (RT_UNLIKELY(!zz_parser_parse_function(lexer, ast_nodes_list, root)))
 			goto error;
 
 		/* TODO: We assume that there is a single expression for now. */
