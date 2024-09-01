@@ -3,8 +3,8 @@
 
 #include <rpr.h>
 
-#include "zz_binary_operators.h"
-#include "zz_unary_operators.h"
+#include "ast/zz_binary_operators.h"
+#include "ast/zz_unary_operators.h"
 
 enum zz_ast_node_type {
 	ZZ_AST_NODE_TYPE_NUMBER,

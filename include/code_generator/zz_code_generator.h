@@ -3,7 +3,7 @@
 
 #include <rpr.h>
 
-#include "zz_ast.h"
+#include "ast/zz_ast.h"
 
 rt_s zz_code_generator_generate(struct zz_ast_node *root, rt_char *output_file_path);
 

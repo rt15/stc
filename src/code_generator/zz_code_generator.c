@@ -1,4 +1,4 @@
-#include "zz_code_generator.h"
+#include "code_generator/zz_code_generator.h"
 
 #include "llvm-c/Core.h"
 #include "llvm-c/Target.h"

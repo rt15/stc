@@ -1,4 +1,4 @@
-#include "zz_lexer.h"
+#include "lexer/zz_lexer.h"
 
 /**
  * Read something that starts with a letter or an underscore and is composed of letters, digits, and underscores.

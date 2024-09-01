@@ -3,10 +3,10 @@
 #include <rpr.h>
 #include <rpr_main.h>
 
-#include "zz_lexer.h"
-#include "zz_parser.h"
-#include "zz_ast.h"
-#include "zz_code_generator.h"
+#include "lexer/zz_lexer.h"
+#include "parser/zz_parser.h"
+#include "ast/zz_ast.h"
+#include "code_generator/zz_code_generator.h"
 
 static rt_s zz_display_help(rt_s ret)
 {

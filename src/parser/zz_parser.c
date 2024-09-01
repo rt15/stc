@@ -1,4 +1,4 @@
-#include "zz_parser.h"
+#include "parser/zz_parser.h"
 
 static const rt_un zz_parser_binary_operators_precedence[] = {
 	[ZZ_BINARY_OPERATOR_ADD] = 1,
