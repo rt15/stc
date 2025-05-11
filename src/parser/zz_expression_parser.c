@@ -13,24 +13,20 @@ static const rt_un zz_expression_parser_binary_operators_precedence[] = {
  */
 static rt_s zz_expression_parser_parse_minus(struct zz_lexer *lexer, void **ast_nodes_list, struct zz_ast_node **result)
 {
-	rt_s ret;
+	rt_s ret = RT_FAILED;
 
 	if (RT_UNLIKELY(!rt_list_new_item(ast_nodes_list, (void**)result)))
-		goto error;
+		goto end;
 
 	(*result)->type = ZZ_AST_NODE_TYPE_UNARY_OPERATOR;
 	(*result)->u.unary_operator.unary_operator = ZZ_UNARY_OPERATOR_NEGATE;
 
 	if (RT_UNLIKELY(!zz_lexer_read_next_token(lexer)))
-		goto error;
+		goto end;
 
 	ret = RT_OK;
-free:
+end:
 	return ret;
-
-error:
-	ret = RT_FAILED;
-	goto free;
 }
 
 /**
@@ -44,44 +40,40 @@ static rt_s zz_expression_parser_parse_number(struct zz_lexer *lexer, void **ast
 {
 	struct zz_token *current_token = &lexer->current_token;
 	rt_n value;
-	rt_s ret;
+	rt_s ret = RT_FAILED;
 
 	if (RT_UNLIKELY(!rt_char_convert_to_n_with_size(current_token->str, current_token->str_size, &value)))
-		goto error;
+		goto end;
 
 	if (RT_UNLIKELY(!rt_list_new_item(ast_nodes_list, (void**)result)))
-		goto error;
+		goto end;
 
 	(*result)->type = ZZ_AST_NODE_TYPE_NUMBER;
 	(*result)->u.number.value = value;
 
 	if (RT_UNLIKELY(!zz_lexer_read_next_token(lexer)))
-		goto error;
+		goto end;
 
 	ret = RT_OK;
-free:
+end:
 	return ret;
-
-error:
-	ret = RT_FAILED;
-	goto free;
 }
 
 static rt_s zz_expression_parser_parse_parenthesis(struct zz_lexer *lexer, void **ast_nodes_list, struct zz_ast_node **result)
 {
 	struct zz_token *current_token = &lexer->current_token;
-	rt_s ret;
+	rt_s ret = RT_FAILED;
 
 	/* Consume the opening parenthesis. */
 	if (!zz_lexer_read_next_token(lexer))
 		return RT_FAILED;
 
 	if (RT_UNLIKELY(!zz_expression_parser_parse(lexer, ast_nodes_list, result)))
-		goto error;
+		goto end;
 
 	if (current_token->type != ZZ_TOKEN_TYPE_CLOSE_PARENTHESIS) {
 		/* TODO: Better error handling. */
-		goto error;
+		goto end;
 	}
 
 	/* Consume the closing parenthesis. */
@@ -89,12 +81,8 @@ static rt_s zz_expression_parser_parse_parenthesis(struct zz_lexer *lexer, void 
 		return RT_FAILED;
 
 	ret = RT_OK;
-free:
+end:
 	return ret;
-
-error:
-	ret = RT_FAILED;
-	goto free;
 }
 
 /**
@@ -104,37 +92,33 @@ static rt_s zz_expression_parser_parse_primary(struct zz_lexer *lexer, void **as
 {
 	struct zz_token *current_token = &lexer->current_token;
 	struct zz_ast_node *ast_node;
-	rt_s ret;
+	rt_s ret = RT_FAILED;
 
 	switch (current_token->type) {
 	case ZZ_TOKEN_TYPE_MINUS:
 		/* Unary minus. */
 		if (RT_UNLIKELY(!zz_expression_parser_parse_minus(lexer, ast_nodes_list, result)))
-			goto error;
+			goto end;
 		if (RT_UNLIKELY(!zz_expression_parser_parse_primary(lexer, ast_nodes_list, &ast_node)))
-			goto error;
+			goto end;
 		(*result)->u.unary_operator.operand = ast_node;
 		break;
 	case ZZ_TOKEN_TYPE_NUMBER:
 		if (RT_UNLIKELY(!zz_expression_parser_parse_number(lexer, ast_nodes_list, result)))
-			goto error;
+			goto end;
 		break;
 	case ZZ_TOKEN_TYPE_OPEN_PARENTHESIS:
 		if (RT_UNLIKELY(!zz_expression_parser_parse_parenthesis(lexer, ast_nodes_list, result)))
-			goto error;
+			goto end;
 		break;
 	default:
 		/* TODO: Better error handling. */
-		goto error;
+		goto end;
 	}
 
 	ret = RT_OK;
-free:
+end:
 	return ret;
-
-error:
-	ret = RT_FAILED;
-	goto free;
 }
 
 static rt_s zz_expression_parser_parse_binary_operator(struct zz_lexer *lexer, rt_un parent_operator_precedence, struct zz_ast_node *left_hand_side, void **ast_nodes_list, struct zz_ast_node **result)
@@ -146,7 +130,7 @@ static rt_s zz_expression_parser_parse_binary_operator(struct zz_lexer *lexer, r
 	rt_un next_operator_precedence;
 	struct zz_ast_node *right_hand_side;
 	struct zz_ast_node *ast_node;
-	rt_s ret;
+	rt_s ret = RT_FAILED;
 
 	while (RT_TRUE) {
 
@@ -180,7 +164,7 @@ static rt_s zz_expression_parser_parse_binary_operator(struct zz_lexer *lexer, r
 		case ZZ_TOKEN_TYPE_NUMBER:
 		default:
 			/* TODO: Better error handling. */
-			goto error;
+			goto end;
 		}
 
 		/* TODO: And now I probably really want a binary operator here. */
@@ -192,11 +176,11 @@ static rt_s zz_expression_parser_parse_binary_operator(struct zz_lexer *lexer, r
 
 		/* We switch from the operator to the first primary after it. */
 		if (RT_UNLIKELY(!zz_lexer_read_next_token(lexer)))
-			goto error;
+			goto end;
 
 		/* We must have a primary after a binary operator. */
 		if (RT_UNLIKELY(!zz_expression_parser_parse_primary(lexer, ast_nodes_list, &right_hand_side)))
-			goto error;
+			goto end;
 
 		/* Now we expect either a binary operator or the end of the expression. */
 		if (current_token->type != ZZ_TOKEN_TYPE_END_OF_FILE &&
@@ -229,19 +213,19 @@ static rt_s zz_expression_parser_parse_binary_operator(struct zz_lexer *lexer, r
 			case ZZ_TOKEN_TYPE_CLOSE_BRACE:
 			default:
 				/* TODO: Better error handling. */
-				goto error;
+				goto end;
 			}
 
 			next_operator_precedence = zz_expression_parser_binary_operators_precedence[next_operator];
 			if (current_operator_precedence < next_operator_precedence) {
 				if (RT_UNLIKELY(!zz_expression_parser_parse_binary_operator(lexer, current_operator_precedence + 1, right_hand_side, ast_nodes_list, result)))
-					goto error;
+					goto end;
 				right_hand_side = *result;
 			}
 		}
 
 		if (RT_UNLIKELY(!rt_list_new_item(ast_nodes_list, (void**)&ast_node)))
-			goto error;
+			goto end;
 
 		ast_node->type = ZZ_AST_NODE_TYPE_BINARY_OPERATOR;
 		ast_node->u.binary_operator.binary_operator = current_operator;
@@ -251,23 +235,19 @@ static rt_s zz_expression_parser_parse_binary_operator(struct zz_lexer *lexer, r
 	}
 
 	ret = RT_OK;
-free:
+end:
 	return ret;
-
-error:
-	ret = RT_FAILED;
-	goto free;
 }
 
 rt_s zz_expression_parser_parse(struct zz_lexer *lexer, void **ast_nodes_list, struct zz_ast_node **result)
 {
 	struct zz_token *current_token = &lexer->current_token;
 	struct zz_ast_node *left_hand_side;
-	rt_s ret;
+	rt_s ret = RT_FAILED;
 
 	/* Parse the left hand side. */
 	if (RT_UNLIKELY(!zz_expression_parser_parse_primary(lexer, ast_nodes_list, &left_hand_side)))
-		goto error;
+		goto end;
 
 	switch (current_token->type) {
 	case ZZ_TOKEN_TYPE_END_OF_FILE:
@@ -282,18 +262,14 @@ rt_s zz_expression_parser_parse(struct zz_lexer *lexer, void **ast_nodes_list, s
 	case ZZ_TOKEN_TYPE_SLASH:
 	case ZZ_TOKEN_TYPE_PERCENT:
 		if (RT_UNLIKELY(!zz_expression_parser_parse_binary_operator(lexer, 0, left_hand_side, ast_nodes_list, result)))
-			goto error;
+			goto end;
 		break;
 	default:
 		/* TODO: Handle error. */
-		goto error;
+		goto end;
 	}
 
 	ret = RT_OK;
-free:
+end:
 	return ret;
-
-error:
-	ret = RT_FAILED;
-	goto free;
 }

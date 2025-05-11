@@ -10,14 +10,14 @@ rt_s zz_function_generator_generate(struct zz_ast_node *node, LLVMContextRef llv
 	LLVMTypeRef main_function_type;
 	LLVMValueRef main_function;
 	LLVMBasicBlockRef main_function_entry;
-	rt_s ret;
+	rt_s ret = RT_FAILED;
 
 	if (node->type != ZZ_AST_NODE_TYPE_FUNCTION) {
-		goto error;
+		goto end;
 	}
 
 	if (RT_UNLIKELY(!zz_expression_generator_generate(node->u.function.body, llvm_context, llvm_module, llvm_builder, &llvm_body_value)))
-		goto error;
+		goto end;
 
 	main_function_return_type = LLVMInt32TypeInContext(llvm_context);
 	main_function_type = LLVMFunctionType(main_function_return_type, main_function_param_types, 0, RT_FALSE);
@@ -27,10 +27,6 @@ rt_s zz_function_generator_generate(struct zz_ast_node *node, LLVMContextRef llv
 	LLVMBuildRet(llvm_builder, llvm_body_value);
 
 	ret = RT_OK;
-free:
+end:
 	return ret;
-
-error:
-	ret = RT_FAILED;
-	goto free;
 }

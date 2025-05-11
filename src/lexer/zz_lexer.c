@@ -41,7 +41,7 @@ rt_s zz_lexer_read_next_token(struct zz_lexer *lexer)
 	rt_char *input = lexer->input;
 	struct zz_token *current_token = &lexer->current_token;
 	rt_char character;
-	rt_s ret;
+	rt_s ret = RT_FAILED;
 
 	while (*input && RT_CHAR_IS_BLANK(*input))
 		input++;
@@ -49,10 +49,10 @@ rt_s zz_lexer_read_next_token(struct zz_lexer *lexer)
 	character = *input;
 	if (RT_CHAR_IS_ALPHA(character) || character == _R('_')) {
 		if (RT_UNLIKELY(!zz_lexer_read_alpha(input, current_token)))
-			goto error;
+			goto end;
 	} else if (RT_CHAR_IS_NUM(character)) {
 		if (RT_UNLIKELY(!zz_lexer_read_num(input, &lexer->current_token)))
-			goto error;
+			goto end;
 	} else if (character == _R('+')) {
 		current_token->type = ZZ_TOKEN_TYPE_PLUS;
 		current_token->str = input;
@@ -100,19 +100,15 @@ rt_s zz_lexer_read_next_token(struct zz_lexer *lexer)
 
 	if (current_token->type != ZZ_TOKEN_TYPE_END_OF_FILE) {
 		if (RT_UNLIKELY(!rt_console_write_str_with_size(current_token->str, current_token->str_size)))
-			goto error;
+			goto end;
 		if (RT_UNLIKELY(!rt_console_write_str_with_size(_R("\n"), 1)))
-			goto error;
+			goto end;
 	} else {
 		if (RT_UNLIKELY(!rt_console_write_str_with_size(_R("EOF\n"), 4)))
-			goto error;
+			goto end;
 	}
 
 	ret = RT_OK;
-free:
+end:
 	return ret;
-
-error:
-	ret = RT_FAILED;
-	goto free;
 }

@@ -9,10 +9,10 @@ static rt_s zz_expression_generator_generate_number(struct zz_ast_node *node, LL
 static rt_s zz_expression_generator_generate_unary_operator(struct zz_ast_node *node, LLVMContextRef llvm_context, LLVMModuleRef llvm_module, LLVMBuilderRef llvm_builder, LLVMValueRef *llvm_value)
 {
 	LLVMValueRef operand;
-	rt_s ret;
+	rt_s ret = RT_FAILED;
 
 	if (RT_UNLIKELY(!zz_expression_generator_generate(node->u.unary_operator.operand, llvm_context, llvm_module, llvm_builder, &operand)))
-		goto error;
+		goto end;
 
 	switch (node->u.unary_operator.unary_operator) {
 	case ZZ_UNARY_OPERATOR_NEGATE:
@@ -20,16 +20,12 @@ static rt_s zz_expression_generator_generate_unary_operator(struct zz_ast_node *
 		break;
 	default:
 		rt_error_set_last(RT_ERROR_BAD_ARGUMENTS);
-		goto error;
+		goto end;
 	}
 
 	ret = RT_OK;
-free:
+end:
 	return ret;
-
-error:
-	ret = RT_FAILED;
-	goto free;
 }
 
 static rt_s zz_expression_generator_generate_binary_operator(struct zz_ast_node *node, LLVMContextRef llvm_context, LLVMModuleRef llvm_module, LLVMBuilderRef llvm_builder, LLVMValueRef *llvm_value)
@@ -38,10 +34,10 @@ static rt_s zz_expression_generator_generate_binary_operator(struct zz_ast_node 
 	LLVMValueRef right_side_operand;
 
 	if (RT_UNLIKELY(!zz_expression_generator_generate(node->u.binary_operator.left, llvm_context, llvm_module, llvm_builder, &left_side_operand)))
-		goto error;
+		goto end;
 	
 	if (RT_UNLIKELY(!zz_expression_generator_generate(node->u.binary_operator.right, llvm_context, llvm_module, llvm_builder, &right_side_operand)))
-		goto error;
+		goto end;
 
 	switch (node->u.binary_operator.binary_operator) {
 	case ZZ_BINARY_OPERATOR_ADD:
@@ -61,47 +57,39 @@ static rt_s zz_expression_generator_generate_binary_operator(struct zz_ast_node 
 		break;
 	default:
 		rt_error_set_last(RT_ERROR_BAD_ARGUMENTS);
-		goto error;
+		goto end;
 	}
 
-	rt_s ret;
+	rt_s ret = RT_FAILED;
 
 	ret = RT_OK;
-free:
+end:
 	return ret;
-
-error:
-	ret = RT_FAILED;
-	goto free;
 }
 
 rt_s zz_expression_generator_generate(struct zz_ast_node *node, LLVMContextRef llvm_context, LLVMModuleRef llvm_module, LLVMBuilderRef llvm_builder, LLVMValueRef *llvm_value)
 {
-	rt_s ret;
+	rt_s ret = RT_FAILED;
 
 	switch (node->type) {
 	case ZZ_AST_NODE_TYPE_NUMBER:
 		if (RT_UNLIKELY(!zz_expression_generator_generate_number(node, llvm_context, llvm_value)))
-			goto error;
+			goto end;
 		break;
 	case ZZ_AST_NODE_TYPE_UNARY_OPERATOR:
 		if (RT_UNLIKELY(!zz_expression_generator_generate_unary_operator(node, llvm_context, llvm_module, llvm_builder, llvm_value)))
-			goto error;
+			goto end;
 		break;
 	case ZZ_AST_NODE_TYPE_BINARY_OPERATOR:
 		if (RT_UNLIKELY(!zz_expression_generator_generate_binary_operator(node, llvm_context, llvm_module, llvm_builder, llvm_value)))
-			goto error;
+			goto end;
 		break;
 	default:
 		rt_error_set_last(RT_ERROR_BAD_ARGUMENTS);
-		goto error;
+		goto end;
 	}
 
 	ret = RT_OK;
-free:
+end:
 	return ret;
-
-error:
-	ret = RT_FAILED;
-	goto free;
 }
